@@ -439,13 +439,35 @@ def calculate_CRPS(z_photo_vectors, z_spec):
                 crps[i] += ((len(np.where(z_photo_vectors[i]<z)[0])*1.0/length-1)**2)*(4.0/200)
     return crps
 
+def calculate_3sigma_outlier_fraction(z_photo, e_zphoto, z_spec):
+    """
+    LSST METRIC. Returns the fraction of galaxies with photometric redshift
+    errors greater than 3 sigma. For models with uncertainty estimates.
+
+    Inputs:
+    --------
+    z_photom: array
+        Photometric or predicted redshifts.
+    e_zphoto: array
+        Photometric or predicted redshift errors.
+    z_spec: array
+        Spectroscopic or actual redshifts.
+    
+    Output:
+    --------
+    frac: float
+    """
+    diff = np.abs(z_photo - z_spec)
+    frac = np.mean(diff > 3 * e_zphoto)
+    return frac
+
 
 ########################
 # QUICK VIEW FUNCTIONS #
 ########################
 
 
-def get_point_metrics(z_photo, z_spec, binrange=np.linspace(0, 4, 2)):
+def get_point_metrics(z_photo, z_spec, binrange=np.linspace(0, 4, 21)):
     """
     Get a dataframe of the point estimate metrics given predictions.
 
@@ -458,10 +480,6 @@ def get_point_metrics(z_photo, z_spec, binrange=np.linspace(0, 4, 2)):
         the spectroscopic redshifts.
     """
 
-    # Ensure pandas Series
-    z_photo = pd.Series(z_photo)
-    z_spec = pd.Series(z_spec)
-
     # CREATE BINS
     bins = pd.cut(z_spec, bins=binrange)
     true_grouped = z_spec.groupby(bins, observed=False)
@@ -472,8 +490,14 @@ def get_point_metrics(z_photo, z_spec, binrange=np.linspace(0, 4, 2)):
     for zspec_bin in true_grouped.groups:
 
         # GET BIN'S PREDICTIONS
-        binned_z_true = true_grouped.get_group(zspec_bin)
-        binned_z_pred = pred_grouped.get_group(zspec_bin)
+        try:
+            binned_z_true = true_grouped.get_group(zspec_bin)
+        except KeyError:
+            continue
+        try:
+            binned_z_pred = pred_grouped.get_group(zspec_bin)
+        except KeyError:
+            continue
 
         # BASIC STATISTICS
         count = len(binned_z_true)
@@ -529,7 +553,7 @@ def get_density_metrics(z_photo_vectors, z_spec):
     return metrics_df
 
 ########################
-# Compare Models       #
+#   Compare Models     #
 ########################
 
 published = {
@@ -574,10 +598,38 @@ published = {
         'Dataset': 'GalaxiesML',
         'predKey': 'photoZ_mean',
         'trueKey': 'trueZ'
-    }
+    },
+    'NN-TL': {
+        'predictionFile': '/data2/predictions/soriano_25_ground_truth_models/nn_tl_final/galaxiesml_results_conformal.csv',
+        'Creator': 'Soriano, Jonathan',
+        'Dataset': 'GalaxiesML',
+        'predKey': 'photoZ_mean',
+        'trueKey': 'trueZ'
+    },
+    'BNN-TL': {
+        'predictionFile': '/data2/predictions/soriano_25_ground_truth_models/bnn_tl_final_411331_1/galaxiesml_results_conformal.csv',
+        'Creator': 'Soriano, Jonathan',
+        'Dataset': 'GalaxiesML',
+        'predKey': 'photoZ_mean',
+        'trueKey': 'trueZ'
+    },
+    'NN-Combo': {
+        'predictionFile': '/data2/predictions/soriano_25_ground_truth_models/nn_combo_final/galaxiesml_results_conformal.csv',
+        'Creator': 'Soriano, Jonathan',
+        'Dataset': 'GalaxiesML',
+        'predKey': 'photoZ_mean',
+        'trueKey': 'trueZ'
+    },
+    'BNN-Combo': {
+        'predictionFile': '/data2/predictions/soriano_25_ground_truth_models/bnn_combo_final_411331/galaxiesml_results_conformal.csv',
+        'Creator': 'Soriano, Jonathan',
+        'Dataset': 'GalaxiesML',
+        'predKey': 'photoZ_mean',
+        'trueKey': 'trueZ'
+    },
 }
 
-def get_published_model_metrics(binrange=np.linspace(0,4,21)):
+def get_published_model_metrics(binrange=np.linspace(0,4,2)):
     """
     Get the point estimate metrics for the published models.
 
@@ -683,6 +735,49 @@ def compare_models(z_photo, z_spec, model_names=None, dataset=None, creator=None
     return metrics
 
 ######################
+# Outlier Analysis   #
+#####################
+def get_outlier_indices(z_photo, z_spec, threshold=0.15):
+    """
+    Get the indices of the outliers in the predictions.
+
+    z_photo: array
+        Photometric or predicted redshifts.
+    z_spec: array
+        Spectroscopic or actual redshifts.
+    threshold: float
+        The threshold for defining an outlier. Default is 0.15.
+    
+    Returns:
+    --------
+    outlier_indices: array
+        Indices of the outliers in the predictions.
+    """
+    dz = delz(z_photo, z_spec)
+    outlier_indices = np.where(np.abs(dz) > threshold)[0]
+    return outlier_indices
+
+def get_common_outliers(oultier_objectid_list_1, oultier_objectid_list_2):
+    """
+    Get the common outliers between two lists of outlier object IDs.
+    Prediction file should contain a column 'object_id' for this to work.
+
+    Parameters:
+    oultier_objectid_list_1: list
+        List of object IDs for the first set of outliers.
+    oultier_objectid_list_2: list
+        List of object IDs for the second set of outliers.
+    
+    Returns:
+    --------
+    common_outliers: list
+        List of common object IDs between the two sets of outliers.
+    """
+    common_outliers = list(set(oultier_objectid_list_1) & set(oultier_objectid_list_2))
+    return common_outliers
+    
+
+######################
 # PLOTTING FUNCTIONS #
 ######################
 
@@ -765,7 +860,7 @@ def compare_point_metrics_scatter(metrics_array, legends, desc, markers, zmax=4,
     sns.set(rc={'figure.figsize':(16,24), 'lines.markersize':10})
     plt.suptitle(f'{desc}')
     plt.subplots_adjust(hspace=0.3)
-    metrics = ['bias_conv', 'scatter_conv', 'outlier_conv'] #'loss', 'mse']
+    metrics = ['bias_conv', 'scatter_conv', 'outlier_conv', 'loss', 'mse']
     for i in enumerate(metrics):
         plt.subplot(len(metrics), 1, i[0] + 1)
         for j in range(0,index):
@@ -940,7 +1035,7 @@ def compare_point_metrics_bar(model_arr, model_names, fig_size=(10,5), conventio
         plt.ylabel(f'{metrics[i]}', fontsize=18)
         plt.xticks(fontsize=16)
         plt.yticks(fontsize=16)
-        #plt.legend(iter(ax), model_names, fontsize=16) # must iterate over the bars for the legend to work
+        plt.legend(iter(ax), model_names, fontsize=16) # must iterate over the bars for the legend to work
         
         
 ###############
