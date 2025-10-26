@@ -5,3 +5,5 @@ Python scripts for training and a plotting notebook are included. The requiremen
 Training data is the GalaxiesML-Spectra Dataset, available at https://zenodo.org/uploads/16989593
 
 To run the model, replace placeholder data paths with the location of the GalaxiesML-Spectra HDF5 file. The training script is built to use MLflow (https://mlflow.org/) for model logging; run with MLflow or replace MLflow with your preferred logging method. Run "python train.py" (with a number of editable parameters, see file) to start the training.
+
+The mmae_predictions folder contains the ground truth and model predicted redshifts for the test dataset. See the folder's README for a description of the contents.
