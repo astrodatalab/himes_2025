@@ -1,4 +1,6 @@
-This repository contains training and example code from "Multi-Modal Masked Autoencoders for Learning Image-Spectrum Associations for Galaxy Evolution and Cosmology" by Morgan Himes, Samiksha Krishnamurthy, Andrew Lizarraga, Srinath Saikrishnan, Vikram Seenivasan, Jonathan Soriano, Ying Nian Wu, and Tuan Do.
+This repository contains training and example code from "Multi-Modal Masked Autoencoders for Learning Image-Spectrum Associations for Galaxy Evolution and Cosmology" by Morgan Himes, Samiksha Krishnamurthy, Andrew Lizarraga, Srinath Saikrishnan, Vikram Seenivasan, Jonathan Soriano, Ying Nian Wu, and Tuan Do. The paper is available on arXiv: https://arxiv.org/abs/2510.22527v1
+
+Additionally, please visit the project webpage: https://astrodatalab.github.io/himes_2025/
 
 Python scripts for training and a plotting notebook are included. The requirements.txt file details the packages to be installed. The model class is contained in modules.py. The custom loader for the data is contained in galaxy_loader.py. Visualize results and recreate plots from the paper using MMAE_NeurIPS2025_Plots_Anonymized.ipynb. The file photoz_utils.py contains some functions necessary for producing the redshift regression plot (see https://github.com/astrodatalab/datalabutils).
 
